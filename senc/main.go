@@ -7,8 +7,7 @@ import (
 	"os"
 	"strings"
 
-	b58 "github.com/jbenet/go-base58"
-
+  mb "github.com/multiformats/go-multibase"
 	senc "github.com/jbenet/go-simple-encrypt"
 )
 
@@ -33,7 +32,7 @@ func onlyOne(cs ...bool) bool {
 func parseOpts() (options, error) {
 	o := options{}
 
-	flag.StringVar(&o.keyS, "k", "", "key to use (in base58)")
+	flag.StringVar(&o.keyS, "k", "", "key to use (in multibase)")
 	flag.BoolVar(&o.encrypt, "e", false, "encrypt mode")
 	flag.BoolVar(&o.decrypt, "d", false, "decrypt mode")
 	flag.BoolVar(&o.keygen, "key-gen", false, "generate a key")
@@ -47,9 +46,13 @@ func parseOpts() (options, error) {
 
 	if !o.keygen {
 		o.keyS = strings.TrimSpace(o.keyS)
-		o.key = b58.Decode(o.keyS)
+		_, k, err := mb.Decode(o.keyS)
+		o.key = k
+		if err != nil {
+			return o, fmt.Errorf("failed to decode key: %v", err)
+		}
 		if o.keyS == "" || o.key == nil {
-			return o, fmt.Errorf("must provide a key in base58 with -k")
+			return o, fmt.Errorf("must provide a key in multibase with -k")
 		}
 
 		if len(o.key) < senc.KeyLength {
@@ -64,8 +67,8 @@ func parseOpts() (options, error) {
 
 func usage() {
 	p := os.Args[0]
-	fmt.Println("usage: ", p, " -e -k <key-in-base58> - encrypt stdin with aes")
-	fmt.Println("       ", p, " -d -k <key-in-base58> - decrypt stdin with aes")
+	fmt.Println("usage: ", p, " -e -k <key-mbase> - encrypt stdin with aes")
+	fmt.Println("       ", p, " -d -k <key-mbase> - decrypt stdin with aes")
 	fmt.Println("")
 	fmt.Println("options")
 	flag.PrintDefaults()
@@ -83,7 +86,11 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(b58.Encode(k))
+		ks, err := mb.Encode(mb.Base58BTC, k)
+		if err != nil {
+			return err
+		}
+		fmt.Println(ks)
 		return nil
 	}
 
